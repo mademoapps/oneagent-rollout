@@ -1,0 +1,14 @@
+#cloud-config
+package_update: true
+packages:
+  - nginx
+write_files:
+  # A simple page, so the app matches the Acme Retail story
+  - path: /var/www/html/index.html
+    content: |
+      <h1>Acme Retail</h1>
+      <p>Web tier. Server is up.</p>
+  # A trickle of visits: every minute, 12 requests, 5 seconds apart
+  - path: /etc/cron.d/acme-traffic
+    content: |
+      * * * * * root for i in 1 2 3 4 5 6 7 8 9 10 11 12; do curl -s -o /dev/null http://localhost/; sleep 5; done
