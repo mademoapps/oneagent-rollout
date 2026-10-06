@@ -18,6 +18,7 @@ oneagent_install_args:
   - --set-host-tag=owner=platform-team
   - --set-host-tag=app=web
   - --set-monitoring-mode=fullstack
+  - --set-host-name={{ inventory_hostname }}
 
 # Dev and Test: restart the app after a first install so it is fully monitored.
 # Prod: app owners restart in their own maintenance window.
