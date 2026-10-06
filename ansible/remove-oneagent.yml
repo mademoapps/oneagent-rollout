@@ -1,0 +1,8 @@
+- name: Remove Dynatrace OneAgent
+  hosts: all
+  become: true
+  vars:
+    oneagent_package_state: absent
+  roles:
+    - role: dynatrace.oneagent.oneagent
+    

@@ -1,0 +1,50 @@
+# Installs Dynatrace OneAgent the same way in every environment.
+- name: Install Dynatrace OneAgent
+  hosts: all
+  become: true
+  order: sorted             # predictable waves: servers in name order
+  gather_facts: false       # first give brand-new servers time to boot
+  serial:                   # roll out in waves
+    - 1                     # wave 1: one server first
+    - "25%"                 # wave 2: 25% of the servers
+    - "100%"                # wave 3: all the rest
+  max_fail_percentage: 10   # stop everything if more than 10% of a wave fails
+
+  pre_tasks:
+    - name: Wait until the server answers (a new server takes a minute)
+      ansible.builtin.wait_for_connection:
+        timeout: 300
+
+    - name: Wait for first-boot setup to finish
+      ansible.builtin.command: cloud-init status --wait
+      changed_when: false
+      failed_when: false
+
+    - name: Gather facts
+      ansible.builtin.setup:
+
+    - name: Check whether the agent is already installed
+      ansible.builtin.stat:
+        path: /opt/dynatrace/oneagent/agent/tools/oneagentctl
+      register: agent_before
+
+  roles:
+    - role: dynatrace.oneagent.oneagent
+
+  post_tasks:
+    - name: Read service states
+      ansible.builtin.service_facts:
+
+    - name: Confirm the agent is running
+      ansible.builtin.assert:
+        that: ansible_facts.services['oneagent.service'].state == 'running'
+        fail_msg: "OneAgent is NOT running on {{ inventory_hostname }}"
+        success_msg: "OneAgent is running on {{ inventory_hostname }}"
+
+    - name: Restart the app so it is fully monitored (first install, Dev and Test only)
+      ansible.builtin.service:
+        name: nginx
+        state: restarted
+      when:
+        - restart_apps_after_install | bool
+        - not agent_before.stat.exists
