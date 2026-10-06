@@ -1,0 +1,13 @@
+# Every running web server tagged for this environment. Nobody types a server list.
+plugin: amazon.aws.aws_ec2
+regions:
+  - us-west-2
+filters:
+  tag:Project: acme-demo
+  tag:Environment: prod
+  tag:Role: web
+  instance-state-name: running
+hostnames:
+  - tag:Name
+compose:
+  ansible_host: private_ip_address

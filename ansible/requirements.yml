@@ -1,0 +1,4 @@
+collections:
+  - name: dynatrace.oneagent
+    version: "1.2.5"
+  - name: amazon.aws
