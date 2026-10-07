@@ -1,2 +1,2 @@
 environment    = "prod"
-instance_count = 3
+instance_count = 2
