@@ -1,0 +1,51 @@
+name: Pre-flight check (lab only)
+on: workflow_dispatch
+
+permissions:
+  contents: read
+
+jobs:
+  preflight:
+    runs-on: [self-hosted, acme-lab]
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Does each environment have servers, and can Ansible reach them?
+        working-directory: ansible
+        run: |
+          for e in dev test prod; do
+            list=$(ansible all -i "inventories/$e/" --list-hosts)
+            echo "--- $e ---"
+            echo "$list"
+            if echo "$list" | grep -q "hosts (0)"; then
+              echo "No $e servers found. Run Rebuild lab first."
+              exit 1
+            fi
+            ansible all -i "inventories/$e/" -m ping -o
+          done
+
+      - name: Clean start? No agent may be running yet
+        working-directory: ansible
+        run: |
+          for e in dev test prod; do
+            states=$(ansible all -i "inventories/$e/" -b -m shell -a 'systemctl is-active oneagent || true' -o)
+            echo "$states"
+            if echo "$states" | grep -q "(stdout) active"; then
+              echo "An agent is already running in $e. Run Rebuild lab first."
+              exit 1
+            fi
+          done
+
+      - name: Do both Dynatrace tokens work?
+        env:
+          DT_ENV_URL: ${{ secrets.DT_ENV_URL }}
+          DT_INSTALL_TOKEN: ${{ secrets.DT_INSTALL_TOKEN }}
+          DT_READ_TOKEN: ${{ secrets.DT_READ_TOKEN }}
+        run: |
+          curl -sf -o /dev/null -H "Authorization: Api-Token $DT_INSTALL_TOKEN" \
+            "$DT_ENV_URL/api/v1/deployment/installer/agent/unix/default/latest/metainfo"
+          echo "Install token OK"
+          curl -sf -o /dev/null -H "Authorization: Api-Token $DT_READ_TOKEN" \
+            --get --data-urlencode 'entitySelector=type("HOST")' "$DT_ENV_URL/api/v2/entities"
+          echo "Read token OK"
+          
