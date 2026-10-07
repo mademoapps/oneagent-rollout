@@ -1,0 +1,36 @@
+name: Rebuild lab (lab only)
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "rebuild = fresh agent-free servers; down = delete the web servers"
+        type: choice
+        options: [rebuild, down]
+        default: rebuild
+
+permissions:
+  contents: read
+
+concurrency:
+  group: oneagent-rollout
+  cancel-in-progress: false
+
+jobs:
+  rebuild:
+    runs-on: [self-hosted, acme-lab]
+    env:
+      TF_IN_AUTOMATION: "true"
+      TF_PLUGIN_CACHE_DIR: /home/ubuntu/.terraform.d/plugin-cache
+    steps:
+      - uses: actions/checkout@v6
+      - name: Delete the web servers, then recreate them clean
+        working-directory: terraform/envs
+        run: |
+          terraform init -input=false
+          for e in dev test prod; do
+            terraform workspace select -or-create "$e"
+            terraform destroy -input=false -auto-approve -var-file="$e.tfvars"
+            if [ "${{ inputs.action }}" = "rebuild" ]; then
+              terraform apply -input=false -auto-approve -var-file="$e.tfvars"
+            fi
+          done

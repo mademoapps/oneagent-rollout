@@ -1,0 +1,74 @@
+name: Deploy one stage
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  TF_IN_AUTOMATION: "true"
+  TF_PLUGIN_CACHE_DIR: /home/ubuntu/.terraform.d/plugin-cache
+
+jobs:
+  plan:
+    name: plan ${{ inputs.environment }}
+    runs-on: [self-hosted, acme-lab]
+    steps:
+      - name: Get the code
+        uses: actions/checkout@v6
+
+      - name: Terraform plan (what will change?)
+        working-directory: terraform/envs
+        run: |
+          terraform init -input=false
+          terraform workspace select -or-create ${{ inputs.environment }}
+          terraform plan -input=false -var-file=${{ inputs.environment }}.tfvars -out=tfplan
+
+      - name: Keep the plan for the approver and the apply
+        uses: actions/upload-artifact@v6
+        with:
+          name: tfplan-${{ inputs.environment }}
+          path: terraform/envs/tfplan
+          retention-days: 1
+
+  deploy:
+    name: deploy ${{ inputs.environment }}
+    needs: plan
+    runs-on: [self-hosted, acme-lab]
+    environment: ${{ inputs.environment }}   # test and prod wait here for approval
+    steps:
+      - name: Get the code
+        uses: actions/checkout@v6
+
+      - name: Fetch the reviewed plan
+        uses: actions/download-artifact@v7
+        with:
+          name: tfplan-${{ inputs.environment }}
+          path: terraform/envs
+
+      - name: Terraform apply (exactly the plan that was reviewed)
+        working-directory: terraform/envs
+        run: |
+          terraform init -input=false
+          terraform workspace select ${{ inputs.environment }}
+          terraform apply -input=false tfplan
+
+      - name: Make sure the Ansible collections are installed
+        run: ansible-galaxy collection install -r ansible/requirements.yml
+
+      - name: Install OneAgent on ${{ inputs.environment }}
+        working-directory: ansible
+        env:
+          DT_ENV_URL: ${{ secrets.DT_ENV_URL }}
+          DT_INSTALL_TOKEN: ${{ secrets.DT_INSTALL_TOKEN }}
+        run: ansible-playbook -i inventories/${{ inputs.environment }}/ install-oneagent.yml
+
+      - name: Check every server reports to Dynatrace
+        env:
+          DT_ENV_URL: ${{ secrets.DT_ENV_URL }}
+          DT_READ_TOKEN: ${{ secrets.DT_READ_TOKEN }}
+        run: python3 scripts/check_reporting.py ${{ inputs.environment }}
