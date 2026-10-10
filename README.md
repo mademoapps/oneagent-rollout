@@ -25,7 +25,7 @@ and a check confirms Dynatrace sees every server before the next stage starts.
 ## Lab only
 
 - **Rebuild lab:** `rebuild` for fresh servers without the agent, `down` to delete them.
-- **Pre-flight check:** confirms servers, access, a clean start and both tokens, before a rehearsal.
+- **Pre-flight check:** confirms servers, access, the agent running on every server, and both tokens, before a rehearsal or the demo.
 
 ## Kubernetes (shown, not run in the demo)
 
