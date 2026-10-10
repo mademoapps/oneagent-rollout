@@ -4,3 +4,4 @@ host_tags:
   - env={{ env_name }}
   - app=web
   - owner=platform-team
+  - cost_center=cc-4410
