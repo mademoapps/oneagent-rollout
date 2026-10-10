@@ -1,15 +1,12 @@
 name: Pre-flight check (lab only)
 on: workflow_dispatch
-
 permissions:
   contents: read
-
 jobs:
   preflight:
     runs-on: [self-hosted, acme-lab]
     steps:
       - uses: actions/checkout@v6
-
       - name: Does each environment have servers, and can Ansible reach them?
         working-directory: ansible
         run: |
@@ -23,19 +20,25 @@ jobs:
             fi
             ansible all -i "inventories/$e/" -m ping -o
           done
-
-      - name: Clean start? No agent may be running yet
+          if ! ansible all -i inventories/prod/ --list-hosts | grep -q "hosts (2)"; then
+            echo "Prod should have 2 servers before the demo. Set prod.tfvars back to 2."
+            exit 1
+          fi
+      - name: Ready for the demo? Agent running everywhere, no cost_center tag yet
         working-directory: ansible
         run: |
           for e in dev test prod; do
-            states=$(ansible all -i "inventories/$e/" -b -m shell -a 'systemctl is-active oneagent || true' -o)
-            echo "$states"
-            if echo "$states" | grep -q "(stdout) active"; then
-              echo "An agent is already running in $e. Run Rebuild lab first."
+            out=$(ansible all -i "inventories/$e/" -b -m shell -a 'systemctl is-active oneagent || true; /opt/dynatrace/oneagent/agent/tools/oneagentctl --get-host-tags 2>/dev/null || true')
+            echo "$out"
+            if echo "$out" | grep -q "^inactive\|^failed\|^unknown"; then
+              echo "The agent isn't running on every $e server. Run the rollout first."
+              exit 1
+            fi
+            if echo "$out" | grep -q "^cost_center="; then
+              echo "cost_center is already set in $e. Reset the lab first."
               exit 1
             fi
           done
-
       - name: Do both Dynatrace tokens work?
         env:
           DT_ENV_URL: ${{ secrets.DT_ENV_URL }}
@@ -48,4 +51,3 @@ jobs:
           curl -sf -o /dev/null -H "Authorization: Api-Token $DT_READ_TOKEN" \
             --get --data-urlencode 'entitySelector=type("HOST")' "$DT_ENV_URL/api/v2/entities"
           echo "Read token OK"
-          

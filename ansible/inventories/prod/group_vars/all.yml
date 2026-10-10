@@ -1,25 +1,12 @@
-# Prod settings. The playbook is identical everywhere; only this file changes.
+# PROD settings. The playbook is identical everywhere; only this file changes.
 env_name: prod
 ansible_user: ubuntu
 ansible_ssh_private_key_file: ~/.ssh/acme-lab
-
-# Where agents report, and the install token. Both arrive as environment
-# variables filled from the pipeline's secrets. Never write them here.
 oneagent_environment_url: "{{ lookup('ansible.builtin.env', 'DT_ENV_URL') }}"
 oneagent_paas_token: "{{ lookup('ansible.builtin.env', 'DT_INSTALL_TOKEN') }}"
-
-# Agent version. Dev takes the newest; Test and Prod can be pinned to the version Dev proved.
-oneagent_version: latest
-
-# How each server is labelled in Dynatrace
+oneagent_version: "1.347.53.20261007-171544"
 oneagent_install_args:
   - --set-host-group=acme-prod
-  - --set-host-tag=env=prod
-  - --set-host-tag=owner=platform-team
-  - --set-host-tag=app=web
   - --set-monitoring-mode=fullstack
   - --set-host-name={{ inventory_hostname }}
-
-# Dev and Test: restart the app after a first install so it is fully monitored.
-# Prod: app owners restart in their own maintenance window.
 restart_apps_after_install: false

@@ -1,0 +1,6 @@
+# Host tags for every server, in every environment.
+# Add, change or remove a line, push, and the pipeline updates every server.
+host_tags:
+  - env={{ env_name }}
+  - app=web
+  - owner=platform-team

@@ -2,3 +2,4 @@ collections:
   - name: dynatrace.oneagent
     version: "1.2.5"
   - name: amazon.aws
+    version: ">=11.5.0,<12.0.0"

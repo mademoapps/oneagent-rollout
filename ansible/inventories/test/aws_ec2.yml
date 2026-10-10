@@ -2,6 +2,7 @@
 plugin: amazon.aws.aws_ec2
 regions:
   - us-west-2
+use_deprecated_tags: false
 filters:
   tag:Project: acme-demo
   tag:Environment: test
