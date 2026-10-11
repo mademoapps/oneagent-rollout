@@ -1,0 +1,6 @@
+# DDLAB settings: the same pattern with the Datadog Agent.
+env_name: dev
+ansible_user: ubuntu
+ansible_ssh_private_key_file: ~/.ssh/acme-lab
+datadog_api_key: "{{ lookup('ansible.builtin.env', 'DD_API_KEY') }}"
+datadog_site: "{{ lookup('ansible.builtin.env', 'DD_SITE') }}"

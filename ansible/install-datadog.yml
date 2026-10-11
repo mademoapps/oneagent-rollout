@@ -1,0 +1,32 @@
+# Same pattern as install-oneagent.yml. Only the role and its settings change.
+- name: Install the Datadog Agent
+  hosts: all
+  become: true
+  order: sorted
+  gather_facts: false
+  serial: [1, "25%", "100%"]
+  max_fail_percentage: 10
+  pre_tasks:
+    - name: Wait until the server answers (a new server takes a minute)
+      ansible.builtin.wait_for_connection: { timeout: 300 }
+    - name: Wait for first-boot setup to finish
+      ansible.builtin.command: cloud-init status --wait
+      changed_when: false
+      failed_when: false
+    - name: Gather facts
+      ansible.builtin.setup:
+  roles:
+    - role: datadog.dd.agent
+      vars:
+        datadog_config:
+          hostname: "{{ inventory_hostname }}"
+          # Same tag list as Dynatrace; Datadog writes key:value instead of key=value
+          tags: "{{ host_tags | map('replace', '=', ':') | list }}"
+  post_tasks:
+    - name: Read service states
+      ansible.builtin.service_facts:
+    - name: Confirm the agent is running
+      ansible.builtin.assert:
+        that: ansible_facts.services['datadog-agent.service'].state == 'running'
+        fail_msg: "Datadog Agent is NOT running on {{ inventory_hostname }}"
+        success_msg: "Datadog Agent is running on {{ inventory_hostname }}"

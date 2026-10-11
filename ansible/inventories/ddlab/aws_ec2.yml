@@ -1,0 +1,14 @@
+# The Datadog lab server. Found the same way as every other environment.
+plugin: amazon.aws.aws_ec2
+regions:
+  - us-west-2
+use_deprecated_tags: false
+filters:
+  tag:Project: acme-demo
+  tag:Environment: ddlab
+  tag:Role: web
+  instance-state-name: running
+hostnames:
+  - tag:Name
+compose:
+  ansible_host: private_ip_address
